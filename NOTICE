@@ -1,0 +1,113 @@
+DAVbridge
+Copyright (c) 2026 Stefan S. Bechtel
+
+This project is distributed under the terms stated in the LICENSE file
+(MIT License).
+
+DAVbridge is an independent, community-developed project. It is not
+affiliated with, endorsed by, sponsored by, or certified by Microsoft or
+Nextcloud.
+
+
+1. Microsoft Open Specifications material
+-----------------------------------------
+
+1.1 WBXML token tables
+
+This project includes a limited transcription of WBXML token tables from
+the following Microsoft Open Specifications document:
+
+    [MS-ASWBXML]: Exchange ActiveSync: WAP Binary XML (WBXML) Algorithm
+    Document version: v20250520 (release 2025-05-20)
+    Relevant section: 2.1.2.1 (code page / tag token tables)
+    Source:
+    https://learn.microsoft.com/en-us/openspecs/exchange_server_protocols/ms-aswbxml/
+    Retrieved: 2026-11-04
+
+The transcribed data (page number, tag name, token value) is stored in
+  - src/davbridge/eas/tags_table.py (generated code tables), and
+  - tests/data/eas_tags.txt (plain-text copy used to verify the code tables).
+The tables are reproduced to the extent technically necessary to encode and
+decode ActiveSync WBXML messages and to reject unsupported commands in a
+defined way. They contain identifiers and numeric values only; no
+descriptive text of the specification is reproduced.
+
+1.2 Other Microsoft Open Specifications used as implementation references
+
+The implementation was written from the public specifications listed in
+docs/protocol-sources.md. Except for the token tables described above, no
+text, schema or example of those documents is reproduced in this repository
+beyond short identifiers (element names, command names, status codes, URL
+paths) that are required for interoperability. Test fixtures are
+synthetic.
+
+Copyright in the Microsoft documentation remains with Microsoft
+Corporation. The included material is used under the permissions stated in
+the applicable Microsoft Open Specifications documentation notice (see
+the "Copyrights" page of the document above). That notice is separate from
+any patent license.
+
+
+2. EWS ResponseCode names
+-------------------------
+
+The file tests/data/response_codes.txt contains a selection of 65
+enumeration names of the Exchange Web Services "ResponseCode" element
+(ResponseCodeType), for example "NoError" and "ErrorItemNotFound". It is used
+by the test-suite to verify that the server only emits valid code names.
+
+    Exchange Web Services reference: ResponseCode
+    Source:
+    https://learn.microsoft.com/en-us/exchange/client-developer/web-service-reference/responsecode
+    Retrieved: 2026-11-04
+
+This is not an Open Specifications document. The list contains
+protocol identifiers (names) only, without any descriptive text. Copyright
+in the original documentation remains with Microsoft.
+
+
+3. Time zone data (CLDR)
+------------------------
+
+The file data/windowsZones.xml is an unmodified copy of
+
+    Unicode CLDR: common/supplemental/windowsZones.xml
+    Copyright (c) Unicode, Inc.
+    Source:
+    https://github.com/unicode-org/cldr/blob/main/common/supplemental/windowsZones.xml
+    Retrieved: 2026-11-01
+
+and is licensed under the Unicode License v3. The license text is reproduced
+in THIRD_PARTY_NOTICES.md. Provenance and checksum are recorded in
+data/README.md.
+
+
+4. Third-party software
+-----------------------
+
+The container image and the Python distribution bundle third-party
+libraries. Their names, licenses and notices are listed in
+THIRD_PARTY_NOTICES.md.
+
+
+5. No patent or trademark license
+
+The project's open-source license applies to project material for which the
+project contributors can grant the relevant rights. THE MIT LICENSE AND THIS
+NOTICE DO NOT GRANT ANY RIGHTS IN MICROSOFT PATENTS, TRADEMARKS OR OTHER
+THIRD-PARTY INTELLECTUAL PROPERTY. The authors make no statement that the
+software is free of third-party patent claims, and nothing in this
+repository should be read as a statement that a patent license is
+unnecessary. Anyone who deploys or redistributes the software is
+responsible for assessing patent, licensing and trademark questions
+for their own jurisdiction and use.
+
+
+6. Trademarks
+
+Microsoft, Outlook, Exchange, ActiveSync, and Microsoft 365 are trademarks of
+the Microsoft group of companies. Nextcloud is a trademark of Nextcloud GmbH.
+All other trademarks are the property of their respective owners. Product
+names are used in this project only to describe technical interoperability
+("works with"), and the protocol path /Microsoft-Server-ActiveSync is used
+only because the protocol requires it. No third-party logos are used.

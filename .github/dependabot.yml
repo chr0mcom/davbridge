@@ -1,0 +1,43 @@
+# Dependabot never bypasses tests or the hash lock: every dependency PR must pass CI.
+#
+# Python: the hash-pinned lock files live in requirements/ (runtime.txt for the image and the wheel, build.txt for the build tools,
+# dev.txt for tests and lint); each has an input file (*.in). Dependabot proposes updates for that directory; a pull request must keep
+# the lock files complete with hashes (`pip-compile --generate-hashes --allow-unsafe --strip-extras`, commands in the *.in headers).
+# CI, the Dockerfile and the release workflow install only from these locks.
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/requirements"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "python"]
+    commit-message:
+      prefix: "deps"
+    groups:
+      python-patch:
+        update-types: ["patch"]
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels: ["dependencies", "docker"]
+    commit-message:
+      prefix: "deps(docker)"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "github-actions"]
+    commit-message:
+      prefix: "ci"
+    groups:
+      actions-patch:
+        update-types: ["patch"]

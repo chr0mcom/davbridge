@@ -1,0 +1,59 @@
+# DAVbridge behind Traefik v3 - DYNAMIC configuration (file provider).
+#
+# Save this file in the directory that your Traefik file provider watches. It
+# defines the router, the middlewares, the service and a long-timeout transport.
+# The static configuration (entry points, certificate resolver, providers) is shown in
+# docs/reverse-proxy.md. This example assumes
+#   - an entry point named `websecure` (HTTPS) and a certificate resolver named `letsencrypt`;
+#   - that Traefik and the `davbridge` container share a Docker network, so that
+#     `http://davbridge:8000` is reachable from Traefik;
+#   - that Traefik is the first proxy in front of DAVbridge, and that DAVbridge's
+#     `server.trusted_proxies` contains Traefik's address.
+#
+# DO NOT add to this router: compression, buffering (it also buffers responses and
+# breaks streaming), forward-auth / basic-auth / SSO / captcha middlewares, or chains
+# of middlewares of unknown content. DAVbridge authenticates every request itself.
+#
+# Replace dav.example.com with your host name. The autodiscover.* name is optional; remove
+# it from the rule if you do not use Autodiscover on the e-mail domain (and then enter the
+# server address manually in Outlook).
+http:
+  routers:
+    davbridge:
+      rule: "(Host(`dav.example.com`) || Host(`autodiscover.dav.example.com`)) && (PathRegexp(`(?i)^/ews/exchange\\.asmx$`) || PathRegexp(`(?i)^/autodiscover/autodiscover\\.(xml|json)(/.*)?$`) || PathRegexp(`(?i)^/microsoft-server-activesync/?$`))"
+      entryPoints: [websecure]
+      tls: {certResolver: letsencrypt}
+      middlewares: [davbridge-headers, davbridge-ratelimit]
+      service: davbridge
+
+  middlewares:
+    davbridge-headers:
+      headers:
+        stsSeconds: 31536000
+        forceSTSHeader: true
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: "no-referrer"
+        customResponseHeaders:
+          X-Robots-Tag: "noindex, nofollow"
+    # 20 requests/s with a burst of 60 per client IP. A full first synchronization issues
+    # hundreds of requests; do not make this much stricter.
+    davbridge-ratelimit:
+      rateLimit:
+        average: 20
+        burst: 60
+        period: 1s
+
+  services:
+    davbridge:
+      loadBalancer:
+        # Flush every write immediately (required for EWS streaming notifications).
+        responseForwarding: {flushInterval: "-1ms"}
+        servers: [{url: "http://davbridge:8000"}]
+        serversTransport: davbridge-long
+
+  serversTransports:
+    davbridge-long:
+      # At least 1900 s for an 1800 s EWS stream, and above the 540 s EAS Ping
+      # heartbeat (the response to a Ping arrives only when the heartbeat ends).
+      forwardingTimeouts: {dialTimeout: "10s", responseHeaderTimeout: "1900s", idleConnTimeout: "1900s"}

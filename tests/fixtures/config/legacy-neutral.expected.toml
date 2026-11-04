@@ -1,0 +1,80 @@
+# DAVbridge configuration (config_version = 1), converted from a legacy configuration file.
+# Review it, then validate with: davbridge config validate
+
+config_version = 1
+
+[server]
+public_url = "https://dav.example.com"
+default_timezone = "Europe/Berlin"
+autodiscover_culture = "en:us"
+trusted_proxies = []
+
+[caldav]
+base_url = "https://cloud.example.com/remote.php/dav"
+
+[auth]
+mode = "allowlist"
+positive_cache_seconds = 120
+failure_limit = 5
+initial_lock_seconds = 600
+allowed_users = ["alice", "bob"]
+
+[protocols.ews]
+enabled = true
+stream_max_seconds = 540
+event_detail = "both"
+
+[protocols.eas]
+enabled = true
+acknowledge_mobile_cloud_processing = false
+versions = ["14.1"]
+window_max = 50
+heartbeat_min_seconds = 120
+heartbeat_max_seconds = 480
+device_limit = 4
+delete_brake_minimum = 8
+body_max_chars = 20000
+
+[features]
+event_fields = ["subject", "location", "time", "all_day", "body", "busy_status", "reminder", "categories", "sensitivity"]
+read_only_owners = ["read-only-owner"]
+protected_property_prefixes = ["X-EXAMPLE-PROTECTED-"]
+protected_event_writable_fields = ["subject", "location", "start", "end", "all_day", "timezone"]
+
+[[users]]
+username = "alice"
+address = "alice@dav.example.com"
+display_name = "Alice Example"
+eas_enabled = true
+calendar_mode = "explicit"
+
+[[users.calendars]]
+path = "personal"
+id = "primary"
+display_name = "Primary Calendar"
+default = true
+write = "caldav"
+owner = "alice"
+
+[[users.calendars]]
+path = "shared-calendar_shared_by_read-only-owner"
+id = "read-only-calendar"
+display_name = "Read-Only Calendar"
+default = false
+write = "never"
+owner = "read-only-owner"
+
+[[users]]
+username = "bob"
+address = "bob@dav.example.com"
+display_name = "Bob Example"
+eas_enabled = false
+calendar_mode = "explicit"
+
+[[users.calendars]]
+path = "personal"
+id = "primary"
+display_name = "Primary Calendar"
+default = true
+write = "caldav"
+owner = "bob"

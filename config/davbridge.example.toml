@@ -1,0 +1,146 @@
+# DAVbridge example configuration (config_version = 1).
+#
+# Copy to davbridge.toml and edit. Unknown keys, wrong types, duplicate users, ambiguous
+# calendars, plain-HTTP URLs and inconsistent EAS switches prevent startup.
+# Validate with:  davbridge check
+# Every scalar value can be overridden by environment variables; see docs/configuration.md.
+# CalDAV passwords are never stored in this file or in the environment: clients send
+# their own CalDAV (app) password with every request and DAVbridge verifies it against the
+# CalDAV server.
+
+config_version = 1
+
+[server]
+# Public HTTPS URL of DAVbridge exactly as clients reach it (scheme + host, no path).
+public_url = "https://dav.example.com"
+# Address `davbridge serve` binds to inside the container (IPv6 hosts in brackets, for example "[::]:8000").
+# The container health check follows this value. Keep 8000 unless you also change the reverse proxy.
+listen = "0.0.0.0:8000"
+# IANA time zone used for events that carry no time zone information.
+default_timezone = "UTC"
+# Culture reported in the mobile Autodiscover response (Outlook mobile only).
+autodiscover_culture = "en:us"
+# Reverse proxies whose X-Forwarded-* headers are trusted (CIDR list). The default is empty = trust nobody.
+# Set this to the address of YOUR proxy, as narrowly as possible (find it with `docker network inspect`,
+# see docs/installation.md), otherwise all clients appear to come from the proxy's IP address and share
+# one lock-out counter. 0.0.0.0/0 and ::/0 are refused. The value below is a placeholder.
+trusted_proxies = ["172.18.0.2/32"]
+
+[caldav]
+# Base URL of the CalDAV service (for Nextcloud: <server>/remote.php/dav). Must be HTTPS.
+base_url = "https://cloud.example.com/remote.php/dav"
+verify_tls = true
+# Redirects from the CalDAV server are never followed in production use.
+follow_redirects = false
+connect_timeout_seconds = 5
+read_timeout_seconds = 30
+
+[auth]
+# "allowlist" (default, recommended): only the users listed below can log in.
+# "pattern": ANY CalDAV user whose name matches username_pattern can use the bridge.
+#            High-risk option; see docs/configuration.md before using it.
+mode = "allowlist"
+# Used in allowlist mode in addition to the [[users]] entries below.
+allowed_users = ["alice"]
+# Only used in pattern mode: fully anchored regular expression (fullmatch).
+username_pattern = ""
+# Account address shown to Outlook; {user} is the only allowed placeholder.
+address_template = "{user}@dav.example.com"
+# How long a successfully verified password is cached in memory.
+positive_cache_seconds = 300
+# Failed logins per client IP before a lock-out starts, and the first lock-out duration.
+failure_limit = 10
+initial_lock_seconds = 900
+
+[protocols.ews]
+# Outlook for Mac (Exchange Web Services).
+enabled = true
+# Maximum duration of one streaming-notification connection. Your reverse proxy
+# timeout must be at least this value plus 100 seconds.
+stream_max_seconds = 1800
+# Which notification events are produced: "folder", "item" or "both".
+event_detail = "both"
+
+[protocols.eas]
+# Outlook for iOS and Android (Exchange ActiveSync 14.1) - DISABLED BY DEFAULT.
+#
+# PRIVACY WARNING: Outlook mobile connects through Microsoft-operated cloud services. If you
+# enable this, a copy of the calendar, including private events and descriptions, is processed
+# by Microsoft. Read docs/privacy.md first. Enabling EAS requires ALL of the following:
+#   - enabled = true                                  (global switch, here)
+#   - eas_enabled = true                              (per user, below)
+#   - acknowledge_mobile_cloud_processing = true      (explicit acknowledgement, here)
+enabled = false
+acknowledge_mobile_cloud_processing = false
+# Only 14.1 is supported.
+versions = ["14.1"]
+# Maximum number of items per Sync response window.
+window_max = 100
+# Ping heartbeat limits in seconds. Your reverse proxy timeout must exceed heartbeat_max_seconds (540) with margin: use at least 650.
+heartbeat_min_seconds = 60
+heartbeat_max_seconds = 540
+# Maximum number of devices per user (the least recently used device is replaced, nobody is locked out).
+device_limit = 6
+# Further limits (documented in docs/configuration.md; the values shown are the defaults).
+wait_max_minutes = 9
+ping_limit_per_user = 4
+device_expiry_days = 30
+request_max_seconds = 25
+request_body_max_bytes = 524288
+response_max_bytes = 786432
+body_max_chars = 32768
+# Delete brake: at most max(delete_brake_minimum, 10 % of the items the device knows) client deletions
+# per user and hour are executed; protects against a misbehaving client wiping a calendar.
+delete_brake_minimum = 5
+
+[features]
+# Event fields that clients may read and write. Only fields that are known and tested can be listed;
+# mail, contacts, tasks, attendees, invitations, attachments, series writing, OAuth and EAS 16.x
+# cannot be enabled by configuration.
+event_fields = ["subject", "location", "time", "all_day", "body", "busy_status", "reminder", "categories", "sensitivity"]
+# CalDAV calendar owners whose calendars are always read-only through DAVbridge (extra operator rule).
+read_only_owners = []
+# Events that carry an iCalendar property starting with one of these prefixes (for example "X-EXAMPLE-")
+# may only be changed through EAS in the fields listed in protected_event_writable_fields.
+# Prefixes must be complete, upper-case iCalendar name prefixes. Default: none.
+protected_property_prefixes = []
+protected_event_writable_fields = ["subject", "location", "start", "end", "all_day", "timezone"]
+
+# One [[users]] block per user. username = the CalDAV login name.
+[[users]]
+username = "alice"
+# E-mail-style address that the user enters in Outlook. It does not have to receive mail,
+# but its domain should point at DAVbridge so that Autodiscover works.
+address = "alice@dav.example.com"
+display_name = "Alice Example"
+# Per-user opt-in for Outlook mobile (needs [protocols.eas] enabled and the acknowledgement).
+eas_enabled = false
+# "explicit": only the calendars listed below (recommended). "auto": discover the calendars after login
+# (then remove the [[users.calendars]] blocks and see [dynamic_users] below; docs/configuration.md).
+calendar_mode = "explicit"
+
+  [[users.calendars]]
+  # Calendar collection name below the user's calendar home, i.e. <base_url>/calendars/<username>/<path>/
+  # (Nextcloud names its default calendar "personal").
+  path = "personal"
+  # Stable identifier that clients see. Choose once and do not change it afterwards.
+  id = "primary"
+  display_name = "Primary Calendar"
+  # Exactly one calendar per user must be the default calendar.
+  default = true
+  # "caldav": writing is allowed if configured here AND the CalDAV server grants the privilege.
+  # "never": always read-only.
+  write = "caldav"
+  # CalDAV user name of the calendar's owner.
+  owner = "alice"
+
+# Calendar discovery for users without an explicit calendar list: users with calendar_mode = "auto", allowed_users
+# entries without a [[users]] block, and (high risk) auth.mode = "pattern". Disabled unless calendar_mode = "auto".
+# Discovery lists only calendars the user owns and can read that support events; see docs/configuration.md.
+#
+# [dynamic_users]
+# calendar_mode = "auto"
+# # "only", "first-writable" or the exact calendar path (for Nextcloud usually "personal").
+# default_calendar = "personal"
+# include_shared = false
+# eas_enabled = false

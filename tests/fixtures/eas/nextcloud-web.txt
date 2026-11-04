@@ -1,0 +1,23 @@
+AirSync:ApplicationData
+  Calendar:Timezone = 'xP///wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoAAAAFAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAFAAIAAAAAAAAAxP///w=='
+  Calendar:AllDayEvent = '0'
+  Calendar:BusyStatus = '2'
+  Calendar:Categories
+    Calendar:Category = 'Work'
+    Calendar:Category = 'Planning'
+  Calendar:DtStamp = '20261101T101500Z'
+  Calendar:EndTime = '20261104T100000Z'
+  Calendar:Location = 'Room 3'
+  Calendar:MeetingStatus = '0'
+  Calendar:OrganizerEmail = 'test-user@dav.example.com'
+  Calendar:OrganizerName = 'Test User'
+  Calendar:Reminder = '10'
+  Calendar:Sensitivity = '0'
+  Calendar:Subject = 'Q4 planning'
+  Calendar:StartTime = '20261104T090000Z'
+  Calendar:UID = '5b0c6e1c-0000-4000-8000-000000000001'
+  AirSyncBase:Body
+    AirSyncBase:Type = '1'
+    AirSyncBase:EstimatedDataSize = '14'
+    AirSyncBase:Truncated = '0'
+    AirSyncBase:Data = 'Agenda follows'

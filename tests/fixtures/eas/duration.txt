@@ -1,0 +1,13 @@
+AirSync:ApplicationData
+  Calendar:Timezone = 'AAAAAFUAVABDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFUAVABDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=='
+  Calendar:AllDayEvent = '0'
+  Calendar:BusyStatus = '2'
+  Calendar:DtStamp = '20261110T130000Z'
+  Calendar:EndTime = '20261110T143000Z'
+  Calendar:MeetingStatus = '0'
+  Calendar:OrganizerEmail = 'test-user@dav.example.com'
+  Calendar:OrganizerName = 'Test User'
+  Calendar:Sensitivity = '0'
+  Calendar:Subject = 'With duration'
+  Calendar:StartTime = '20261110T130000Z'
+  Calendar:UID = 'duration-0001'

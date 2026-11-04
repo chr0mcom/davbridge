@@ -1,0 +1,57 @@
+# DAVbridge - hardened Docker Compose example.
+#
+# Before the first start (once):
+#   1. Copy ../../config/davbridge.example.toml to ./davbridge.toml and edit it.
+#   2. docker compose run --rm davbridge davbridge init
+#   3. docker compose run --rm davbridge davbridge check
+# Then: docker compose up -d
+#
+# The service only listens on the internal port 8000 (`expose`, not `ports`).
+# Put a TLS-terminating reverse proxy in front of it, see docs/reverse-proxy.md
+# and ../reverse-proxy/. The proxy container reaches `davbridge:8000` over the Docker
+# network `proxy` below: an EXISTING network that your reverse proxy is attached to. If
+# your proxy network has another name, change `name:` at the bottom (the service key
+# `proxy` can stay). Without a proxy yet, create one: docker network create proxy
+# Then find the proxy's address for `server.trusted_proxies` (docs/installation.md, step 5):
+#   docker network inspect proxy
+#
+
+# Run exactly ONE replica. Do not scale this service.
+services:
+  davbridge:
+    image: ghcr.io/chr0mcom/davbridge:0.1.0
+    restart: unless-stopped
+    user: "65532:65532"
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 64
+    cpus: 1.0
+    mem_limit: 384m
+    stop_grace_period: 20s
+    environment:
+      TZ: UTC
+      DAVBRIDGE_CONFIG: /etc/davbridge/davbridge.toml
+      DAVBRIDGE_STATE_DIR: /var/lib/davbridge
+    volumes:
+      - ./davbridge.toml:/etc/davbridge/davbridge.toml:ro
+      - davbridge-state:/var/lib/davbridge
+    expose: ["8000"]
+    networks: [proxy]
+    healthcheck:
+      test: ["CMD", "davbridge", "healthcheck"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+networks:
+  proxy:
+    # The network that your reverse proxy container is attached to. Change the name if yours differs.
+    name: proxy
+    external: true
+
+volumes:
+  davbridge-state: {}

@@ -1,0 +1,8 @@
+# Runtime dependencies of the wheel and the container image. Keep in line with [project].dependencies in pyproject.toml.
+# Lock: pip-compile --allow-unsafe --generate-hashes --strip-extras --output-file=requirements/runtime.txt requirements/runtime.in
+fastapi>=0.115,<0.117
+uvicorn>=0.32,<0.35
+httpx>=0.27,<0.29
+lxml>=5.3,<6
+icalendar>=6.1,<7
+tzdata

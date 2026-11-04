@@ -1,0 +1,13 @@
+AirSync:ApplicationData
+  Calendar:Timezone = 'AAAAAFUAVABDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFUAVABDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=='
+  Calendar:AllDayEvent = '0'
+  Calendar:BusyStatus = '2'
+  Calendar:DtStamp = '20261110T130000Z'
+  Calendar:EndTime = '20261110T140000Z'
+  Calendar:MeetingStatus = '0'
+  Calendar:OrganizerEmail = 'erika@example.test'
+  Calendar:OrganizerName = 'Erika Sample'
+  Calendar:Sensitivity = '0'
+  Calendar:Subject = 'Project sync'
+  Calendar:StartTime = '20261110T130000Z'
+  Calendar:UID = 'einladung-0001'

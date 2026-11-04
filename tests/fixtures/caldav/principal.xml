@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+ <d:response>
+  <d:href>/remote.php/dav/principals/users/test-user/</d:href>
+  <d:propstat>
+   <d:prop>
+    <d:current-user-principal><d:href>/remote.php/dav/principals/users/test-user/</d:href></d:current-user-principal>
+    <c:calendar-home-set><d:href>/remote.php/dav/calendars/test-user/</d:href></c:calendar-home-set>
+   </d:prop>
+   <d:status>HTTP/1.1 200 OK</d:status>
+  </d:propstat>
+ </d:response>
+</d:multistatus>

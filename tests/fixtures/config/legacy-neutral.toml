@@ -1,0 +1,65 @@
+# Neutral legacy-format configuration (German key names) used by the converter golden test.
+stufe = "M2"
+basis_url = "https://dav.example.com"
+caldav_basis = "https://cloud.example.com/remote.php/dav"
+default_timezone = "Europe/Berlin"
+autodiscover_culture = "en:us"
+ereignis_detail = "beide"
+zugang_pruef_s = 120
+sperre_fehlversuche = 5
+sperre_sekunden = 600
+poll_aktiv_s = 20
+messmodus_tolerant = false
+delete_ohne_changekey = "ablehnen"
+
+[richtlinie]
+nur_lesen_eigentuemer = ["read-only-owner"]
+protected_property_prefixes = ["X-EXAMPLE-PROTECTED-"]
+protected_event_writable_fields = ["item:Subject", "calendar:Location", "calendar:Start", "calendar:End", "calendar:IsAllDayEvent", "calendar:StartTimeZone", "calendar:EndTimeZone"]
+
+[eas]
+aktiv = true
+versionen = ["14.1"]
+fenster_max = 50
+heartbeat_min_s = 120
+heartbeat_max_s = 480
+max_geraete = 4
+loeschbremse_min = 8
+body_max_zeichen = 20000
+
+[[konto]]
+name = "alice"
+adresse = "alice@dav.example.com"
+anzeigename = "Alice Example"
+eas = true
+test = true
+messung = false
+
+  [[konto.kalender]]
+  uri = "personal"
+  schluessel = "primary"
+  anzeigename = "Primary Calendar"
+  standard = true
+  schreiben = "nextcloud"
+  eigentuemer = "alice"
+
+  [[konto.kalender]]
+  uri = "shared-calendar_shared_by_read-only-owner"
+  schluessel = "read-only-calendar"
+  anzeigename = "Read-Only Calendar"
+  standard = false
+  schreiben = "nie"
+  eigentuemer = "read-only-owner"
+
+[[konto]]
+name = "bob"
+adresse = "bob@dav.example.com"
+anzeigename = "Bob Example"
+
+  [[konto.kalender]]
+  uri = "personal"
+  schluessel = "primary"
+  anzeigename = "Primary Calendar"
+  standard = true
+  schreiben = "nextcloud"
+  eigentuemer = "bob"

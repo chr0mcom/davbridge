@@ -1,0 +1,108 @@
+name: Bug report
+description: Something does not work as documented.
+title: "[Bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a problem. DAVbridge is maintained by volunteers without
+        any support commitment, but a good report helps a lot.
+
+        **Security vulnerabilities must NOT be reported here.** Use
+        [private vulnerability reporting](https://github.com/chr0mcom/davbridge/security/advisories/new).
+
+        **This issue is public.** Never post passwords, app passwords, `hmac.key`, tokens, real calendar
+        data (titles, attendees, locations, descriptions) or complete unredacted logs.
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before you submit
+      options:
+        - label: I removed all secrets and all calendar content from everything I paste below.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true
+        - label: I read docs/limitations.md and docs/troubleshooting.md, and this is not a documented limitation.
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: DAVbridge version
+      description: Output of `davbridge version` (or the image tag and digest).
+      placeholder: "0.1.0 (ghcr.io/chr0mcom/davbridge:0.1.0@sha256:...)"
+    validations:
+      required: true
+  - type: dropdown
+    id: protocol
+    attributes:
+      label: Protocol involved
+      options:
+        - EWS (Outlook for Mac)
+        - EAS 14.1 (Outlook for iOS / Android)
+        - Autodiscover
+        - Installation / CLI / configuration
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: Client and version
+      description: Outlook application, version/build and operating system version. Write "n/a" if no client is involved.
+      placeholder: "Outlook for Mac 16.x (build ...), macOS ..."
+    validations:
+      required: true
+  - type: input
+    id: caldav
+    attributes:
+      label: CalDAV server and version
+      placeholder: "Nextcloud 34.0.x (Apache, MySQL)"
+    validations:
+      required: true
+  - type: input
+    id: proxy
+    attributes:
+      label: Reverse proxy and version
+      placeholder: "Traefik v3.x / Caddy 2.x / nginx 1.x"
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the problem. What did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Use synthetic events ("Test event") if you need an example.
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: check
+    attributes:
+      label: Output of `davbridge check --json`
+      description: |
+        Run `docker compose exec davbridge davbridge check --json` (add `--public` if the problem is about
+        reachability). The output contains no secrets, but please skim it and redact host names if you want.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log lines (without secrets and calendar content)
+      description: |
+        DAVbridge logs contain no calendar content, but proxy logs, client logs and screenshots may.
+        Paste only the few lines around the problem (`docker compose logs --since 10m davbridge`).
+      render: text
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else?

@@ -1,0 +1,61 @@
+# DAVbridge behind Caddy v2.
+#
+# Replace dav.example.com with your host name. Caddy obtains and renews a publicly
+# trusted certificate automatically (ports 80 and 443 must be reachable). The
+# autodiscover.* name is optional; remove it if you do not use Autodiscover on the
+# e-mail domain.
+#
+# This example assumes that Caddy and the `davbridge` container share a Docker network
+# and that Caddy is the first proxy in front of DAVbridge: put Caddy's address into
+# DAVbridge's `server.trusted_proxies`.
+#
+# DO NOT add `encode` (compression), `basic_auth`, `forward_auth`, or any SSO / captcha handler
+# for these paths. DAVbridge authenticates every request itself.
+
+{
+	# If Caddy itself sits behind another trusted proxy (CDN, load balancer),
+	# uncomment and list that proxy so that Caddy reports the real client address:
+	# servers {
+	#	trusted_proxies static 203.0.113.0/24
+	# }
+}
+
+dav.example.com, autodiscover.dav.example.com {
+	@dav path_regexp dav (?i)^/(EWS/Exchange\.asmx|autodiscover/autodiscover\.(xml|json)(/.*)?|Microsoft-Server-ActiveSync/?)$
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "no-referrer"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+	}
+
+	handle @dav {
+		# DAVbridge accepts at most 1 MiB per request.
+		request_body {
+			max_size 1MiB
+		}
+
+		reverse_proxy davbridge:8000 {
+			# Flush every write immediately (EWS streaming notifications).
+			flush_interval -1
+
+			transport http {
+				versions 1.1
+				compression off
+				dial_timeout 10s
+				# >= 1900 s for an 1800 s EWS stream and above the 540 s EAS Ping heartbeat.
+				response_header_timeout 1900s
+				read_timeout 1900s
+				write_timeout 60s
+			}
+		}
+	}
+
+	# Everything else (including /healthz) is not served publicly.
+	handle {
+		respond 404
+	}
+}

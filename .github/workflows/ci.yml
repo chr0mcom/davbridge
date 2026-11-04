@@ -1,0 +1,249 @@
+name: CI
+
+# Runs on every push to main, on every pull request (including forks, which get no secrets)
+# and when called from the release workflow.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+    inputs:
+      require_terms:
+        description: "Fail when the DAVBRIDGE_PRIVATE_TERMS secret is empty instead of skipping the publication hygiene tests (the release workflow sets this)"
+        type: boolean
+        default: false
+
+# No permissions by default; every job requests only what it needs.
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TZ: UTC
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+
+jobs:
+  test:
+    name: Tests and lint (Python 3.12)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements/dev.txt
+
+      # Runtime dependencies and development tools, all with hashes. The project itself is imported from src/ (pytest `pythonpath`).
+      - name: Install the hash-pinned development environment
+        run: |
+          pip install --require-hashes --only-binary=:all: -r requirements/dev.txt
+
+      - name: Ruff (lint)
+        run: ruff check src tests tools
+
+      - name: Ruff (format)
+        run: ruff format --check src tests tools
+
+      - name: Offline test suite with coverage
+        run: pytest --cov=davbridge --cov-report=term-missing --cov-report=xml
+
+      # The term list is a repository secret and never part of the repository. Pull requests from forks have no access to the secret and skip this step
+      # with a notice. A caller that sets require_terms (the release workflow) fails closed: a missing or misnamed secret stops the run.
+      - name: Publication hygiene (maintainer-only term list)
+        env:
+          PRIVATE_TERMS: ${{ secrets.DAVBRIDGE_PRIVATE_TERMS }}
+          REQUIRE_TERMS: ${{ inputs.require_terms && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+          if [ -z "$PRIVATE_TERMS" ]; then
+            if [ "$REQUIRE_TERMS" = "true" ]; then
+              echo "::error::DAVBRIDGE_PRIVATE_TERMS is empty or missing, and this run requires the publication hygiene gate (release). Set the repository secret and run again."
+              exit 1
+            fi
+            echo "::notice::DAVBRIDGE_PRIVATE_TERMS is not available (fork or no secret configured): the publication hygiene tests were skipped"
+            exit 0
+          fi
+          umask 077
+          printf '%s\n' "$PRIVATE_TERMS" > "$RUNNER_TEMP/terms.txt"
+          DAVBRIDGE_PRIVATE_TERMS_FILE="$RUNNER_TEMP/terms.txt" pytest tests/unit/test_hygiene.py -q -p no:cacheprovider --no-header --tb=no
+          rm -f "$RUNNER_TEMP/terms.txt"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: ignore
+          retention-days: 7
+
+  package:
+    name: Wheel build and clean install
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Build the wheel from the hash-pinned build tools (no build isolation)
+        run: |
+          set -euo pipefail
+          python -m venv "$RUNNER_TEMP/build"
+          "$RUNNER_TEMP/build/bin/pip" install --require-hashes --only-binary=:all: -r requirements/build.txt
+          "$RUNNER_TEMP/build/bin/pip" wheel --no-index --no-build-isolation --no-deps --wheel-dir dist .
+
+      - name: Install the wheel into an empty environment and run the entry point
+        run: |
+          python -m venv "$RUNNER_TEMP/clean"
+          "$RUNNER_TEMP/clean/bin/pip" install --require-hashes --only-binary=:all: -r requirements/runtime.txt
+          "$RUNNER_TEMP/clean/bin/pip" install --no-deps dist/*.whl
+          "$RUNNER_TEMP/clean/bin/davbridge" version
+          "$RUNNER_TEMP/clean/bin/python" -c "import davbridge, davbridge.main"
+
+  docker:
+    name: Docker build (amd64) and container smoke test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build the image (linux/amd64)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: davbridge:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test - runs as UID 65532 with a read-only root file system
+        run: |
+          set -euo pipefail
+          docker run --rm --read-only --user 65532:65532 --cap-drop ALL \
+            --security-opt no-new-privileges:true --tmpfs /tmp:size=32m,mode=1777 \
+            davbridge:ci davbridge version
+
+          docker run --rm --read-only --user 65532:65532 --entrypoint python davbridge:ci \
+            -c "import os; assert os.getuid() == 65532 and os.getgid() == 65532, (os.getuid(), os.getgid()); print('uid/gid ok')"
+
+          docker volume create davbridge-ci-state >/dev/null
+          RUN="docker run --read-only --user 65532:65532 --cap-drop ALL --security-opt no-new-privileges:true \
+            --tmpfs /tmp:size=32m,mode=1777 \
+            -v $PWD/config/davbridge.example.toml:/etc/davbridge/davbridge.toml:ro \
+            -v davbridge-ci-state:/var/lib/davbridge"
+
+          # One-time initialization (creates hmac.key in the named volume, which is owned by 65532).
+          $RUN --rm davbridge:ci davbridge init
+          $RUN --rm davbridge:ci davbridge migrate --check
+          $RUN --rm davbridge:ci davbridge config validate
+
+          # Start the service and wait for the health endpoint.
+          $RUN -d --name davbridge-ci davbridge:ci
+          for i in $(seq 1 30); do
+            if docker exec davbridge-ci davbridge healthcheck; then
+              echo "healthy after ${i}s"; break
+            fi
+            if [ "$i" = 30 ]; then docker logs davbridge-ci; exit 1; fi
+            sleep 1
+          done
+
+          # An anonymous request must be answered with 401 + Basic challenge, unknown paths with 404.
+          docker exec -i davbridge-ci python - <<'PY'
+          import urllib.request, urllib.error
+          def status(path):
+              try:
+                  return urllib.request.urlopen("http://127.0.0.1:8000" + path, timeout=3).status, None
+              except urllib.error.HTTPError as e:
+                  return e.code, e.headers.get("WWW-Authenticate")
+          code, challenge = status("/EWS/Exchange.asmx")
+          assert code == 401 and (challenge or "").startswith("Basic"), (code, challenge)
+          assert status("/does-not-exist")[0] == 404
+          print("anonymous probe ok")
+          PY
+
+          docker stop --time 20 davbridge-ci
+          docker rm davbridge-ci
+          docker volume rm davbridge-ci-state
+
+  examples:
+    name: Syntax check of Compose and reverse proxy examples
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Docker Compose example
+        run: docker compose -f examples/compose/docker-compose.yml config --quiet
+
+      - name: nginx example (nginx -t)
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/certs"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj "/CN=dav.example.com" \
+            -keyout "$RUNNER_TEMP/certs/privkey.pem" -out "$RUNNER_TEMP/certs/fullchain.pem"
+          # Images in `docker run` lines are pinned by digest (Dependabot does not read workflow files for them): refresh them by hand.
+          docker run --rm --add-host davbridge:127.0.0.1 \
+            -v "$PWD/examples/reverse-proxy/nginx.conf:/etc/nginx/nginx.conf:ro" \
+            -v "$RUNNER_TEMP/certs:/etc/letsencrypt/live/dav.example.com:ro" \
+            nginx:stable@sha256:66b50d24288dba67f3d000b31223daefc4868c58d29aaacb6a4ff9771597b5eb nginx -t
+
+      - name: Caddy example (caddy validate)
+        run: |
+          docker run --rm \
+            -v "$PWD/examples/reverse-proxy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.11.8@sha256:f04f1e8d78da0c65ec6f81b4ea8d216849775f3bc3c87790d95fcb2ec3722f12 caddy validate --config /etc/caddy/Caddyfile
+
+      - name: Traefik example (dynamic configuration loads without errors)
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/traefik/dyn"
+          # Replace the ACME resolver (needs the internet) with a plain TLS section for the syntax check.
+          sed 's/tls: {certResolver: letsencrypt}/tls: {}/' examples/reverse-proxy/traefik.yml > "$RUNNER_TEMP/traefik/dyn/davbridge.yml"
+          cat > "$RUNNER_TEMP/traefik/static.yml" <<'YML'
+          entryPoints:
+            websecure:
+              address: ":8443"
+          providers:
+            file:
+              directory: /dyn
+          log:
+            level: INFO
+          YML
+          docker run -d --name traefik-check \
+            -v "$RUNNER_TEMP/traefik/static.yml:/etc/traefik/traefik.yml:ro" \
+            -v "$RUNNER_TEMP/traefik/dyn:/dyn:ro" traefik:v3@sha256:68ae5fe5b64ca166704b746a9e8afcd385e36b3f569a5691401bf652d57b3748
+          sleep 8
+          docker logs traefik-check 2>&1 | tee "$RUNNER_TEMP/traefik.log"
+          docker rm -f traefik-check >/dev/null
+          if grep -E ' (ERR|FTL) ' "$RUNNER_TEMP/traefik.log"; then exit 1; fi
+
+      - name: Example configuration is valid TOML
+        run: python3 -c "import tomllib; tomllib.load(open('config/davbridge.example.toml', 'rb'))"

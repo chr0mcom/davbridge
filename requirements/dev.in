@@ -1,0 +1,9 @@
+# Development and CI tooling (tests, coverage, lint). Includes the runtime dependencies at the versions of runtime.txt.
+# Keep in line with [project.optional-dependencies].dev in pyproject.toml.
+# Lock: pip-compile --allow-unsafe --generate-hashes --strip-extras --output-file=requirements/dev.txt requirements/dev.in
+-c runtime.txt
+-r runtime.in
+pytest>=8,<10
+pytest-asyncio>=0.24
+pytest-cov>=5
+ruff==0.17.3

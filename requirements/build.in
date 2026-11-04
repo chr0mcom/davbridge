@@ -1,0 +1,5 @@
+# Build tooling for the wheel. The wheel is built with `pip wheel --no-build-isolation` from an environment that contains exactly
+# this lock, so no build backend is ever fetched without a hash. Keep in line with [build-system].requires in pyproject.toml.
+# Lock: pip-compile --allow-unsafe --generate-hashes --strip-extras --output-file=requirements/build.txt requirements/build.in
+setuptools>=77
+wheel

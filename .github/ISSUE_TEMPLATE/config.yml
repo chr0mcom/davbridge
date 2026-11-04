@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability (private)
+    url: https://github.com/chr0mcom/davbridge/security/advisories/new
+    about: Do NOT open a public issue for vulnerabilities. Use GitHub private vulnerability reporting.
+  - name: Troubleshooting guide
+    url: https://github.com/chr0mcom/davbridge/blob/main/docs/troubleshooting.md
+    about: Common problems (wrong password / 2FA, TLS chain, Autodiscover, buffering, stale subscriptions).
+  - name: Known limitations
+    url: https://github.com/chr0mcom/davbridge/blob/main/docs/limitations.md
+    about: Please check this list before reporting missing features such as recurring events, invitations or mail.

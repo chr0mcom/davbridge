@@ -1,0 +1,21 @@
+AirSync:ApplicationData
+  Calendar:Timezone = 'xP///wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAoAAAAFAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAAAFAAIAAAAAAAAAxP///w=='
+  Calendar:AllDayEvent = '0'
+  Calendar:BusyStatus = '2'
+  Calendar:DtStamp = '20261102T070000Z'
+  Calendar:EndTime = '20261102T073000Z'
+  Calendar:MeetingStatus = '0'
+  Calendar:OrganizerEmail = 'test-user@dav.example.com'
+  Calendar:OrganizerName = 'Test User'
+  Calendar:Recurrence
+    Calendar:Type = '1'
+    Calendar:Interval = '1'
+    Calendar:DayOfWeek = '2'
+  Calendar:Sensitivity = '0'
+  Calendar:Subject = 'Weekly start'
+  Calendar:StartTime = '20261102T070000Z'
+  Calendar:UID = 'imported-synthetic-series@example.com'
+  Calendar:Exceptions
+    Calendar:Exception
+      Calendar:Deleted = '1'
+      Calendar:ExceptionStartTime = '20261109T070000Z'

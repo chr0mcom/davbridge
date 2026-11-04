@@ -1,0 +1,319 @@
+name: Release
+
+# Triggered only by version tags pushed by the maintainer, for example v0.1.0 or v0.2.0-rc.1.
+# The tag must point to a commit on main; the workflow checks that and the version in pyproject.toml and CHANGELOG.md.
+#
+# Flow: verify tag -> re-run CI -> build the multi-arch image (SBOM + provenance) and push it under the staging tag sha-<full commit SHA> only
+#       -> smoke test both platforms by digest -> scan both platform variants of that digest -> promote the digest to X.Y.Z (and, for stable versions, X.Y, X and latest)
+#       -> create the GitHub release with the wheel, checksums and the SPDX SBOMs.
+# Nothing but the staging tag is visible in the registry until the scan has passed. A staging tag is a registry tag and therefore movable in principle:
+# the workflow refuses to overwrite an existing one, but only the image DIGEST is immutable. Everything after the push works on the digest.
+# If a run fails after the push (for example in the scan), delete the staging tag of that commit in the package settings before running the workflow again.
+# Moving tags `X.Y`, `X` and `latest` are only published for stable (non-prerelease) versions.
+# Package write permission exists only in the `publish` job.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions: {}
+
+env:
+  IMAGE: ghcr.io/chr0mcom/davbridge
+
+jobs:
+  verify:
+    name: Verify tag
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Check tag format, branch and package version
+        id: v
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)(-rc\.[0-9]+)?$ ]] || { echo "::error::Tag $TAG is not vX.Y.Z or vX.Y.Z-rc.N"; exit 1; }
+          VERSION="${TAG#v}"
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::Tag is not on main"; exit 1; }
+          PKG=$(python - <<'PY'
+          import tomllib
+          print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])
+          PY
+          )
+          # PEP 440 writes the release candidate as "0.2.0rc1"; accept both spellings.
+          NORMALIZED=$(echo "$VERSION" | sed -E 's/-rc\./rc/')
+          if [ "$PKG" != "$VERSION" ] && [ "$PKG" != "$NORMALIZED" ]; then
+            echo "::error::pyproject.toml version ($PKG) does not match tag ($VERSION)"; exit 1
+          fi
+          grep -q "^## \[$VERSION\]" CHANGELOG.md || { echo "::error::CHANGELOG.md has no section for $VERSION"; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$VERSION" == *-* ]]; then echo "prerelease=true" >> "$GITHUB_OUTPUT"; else echo "prerelease=false" >> "$GITHUB_OUTPUT"; fi
+
+  ci:
+    name: CI
+    needs: verify
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      require_terms: true
+    secrets: inherit
+
+  publish:
+    name: Build and push image
+    needs: [verify, ci]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build timestamp
+        id: stamp
+        run: echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Image metadata (staging tag and labels)
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: |
+            latest=false
+          tags: |
+            type=sha,format=long,prefix=sha-
+          labels: |
+            org.opencontainers.image.title=DAVbridge
+            org.opencontainers.image.description=Independent calendar bridge: Outlook (EWS, EAS 14.1) to CalDAV
+            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.source=https://github.com/chr0mcom/davbridge
+            org.opencontainers.image.version=${{ needs.verify.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Refuse to overwrite an existing staging tag
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [ "$TAGS" = "$IMAGE:sha-$SHA" ] || { echo "::error::Unexpected staging tag list: $TAGS"; exit 1; }
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::$SHA is not a full commit SHA"; exit 1; }
+          if OUTPUT=$(docker buildx imagetools inspect "$TAGS" 2>&1); then
+            echo "::error::The staging tag $TAGS already exists. Delete it in the package settings if the earlier run for this commit failed, then run again."
+            exit 1
+          fi
+          # GHCR may answer "denied" for a package that does not exist yet; a real permission problem fails at the push below.
+          if ! grep -qiE 'not found|manifest unknown|name unknown|404|denied' <<< "$OUTPUT"; then
+            echo "::error::Cannot tell whether $TAGS exists: $OUTPUT"
+            exit 1
+          fi
+          echo "$TAGS does not exist yet"
+
+      - name: Build and push (linux/amd64, linux/arm64) with SBOM and provenance, staging tag only
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ needs.verify.outputs.version }}
+            REVISION=${{ github.sha }}
+            BUILD_DATE=${{ steps.stamp.outputs.date }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test both platforms by digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          REVISION: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          for platform in linux/amd64 linux/arm64; do
+            echo "== $platform"
+            docker run --rm --platform "$platform" --read-only --user 65532:65532 --cap-drop ALL \
+              --tmpfs /tmp:size=32m,mode=1777 "$IMAGE@$DIGEST" davbridge version
+            docker run --rm --platform "$platform" --read-only --user 65532:65532 --cap-drop ALL \
+              --tmpfs /tmp:size=32m,mode=1777 "$IMAGE@$DIGEST" python -c "import davbridge.main, lxml.etree, icalendar; print('imports ok')"
+          done
+          docker buildx imagetools inspect "$IMAGE@$DIGEST" | grep -E 'linux/(amd64|arm64)'
+          docker pull "$IMAGE@$DIGEST" >/dev/null
+          docker image inspect "$IMAGE@$DIGEST" --format '{{ index .Config.Labels "org.opencontainers.image.source" }} {{ index .Config.Labels "org.opencontainers.image.licenses" }}'
+          # The version label must be the release version, not the staging tag (the metadata labels override the Dockerfile's).
+          LABEL_VERSION=$(docker image inspect "$IMAGE@$DIGEST" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')
+          [ "$LABEL_VERSION" = "$VERSION" ] || { echo "::error::Image label version is '$LABEL_VERSION', expected '$VERSION'"; exit 1; }
+          LABEL_REVISION=$(docker image inspect "$IMAGE@$DIGEST" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
+          [ "$LABEL_REVISION" = "$REVISION" ] || { echo "::error::Image label revision is '$LABEL_REVISION', expected '$REVISION'"; exit 1; }
+          docker image inspect "$IMAGE@$DIGEST" --format '{{ .Config.User }}' | grep -qx '65532:65532'
+
+      # A newly created GHCR package is private until you make it public once in the package
+      # settings (Package settings -> Change visibility). Trivy authenticates with the job token.
+      # Every platform variant of the digest is scanned from the registry (TRIVY_IMAGE_SRC=remote): the arm64 wheels (lxml, pydantic-core, ...) differ from the amd64 ones.
+      - name: Vulnerability scan linux/amd64 (fails on fixable HIGH / CRITICAL)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          TRIVY_PLATFORM: linux/amd64
+          TRIVY_IMAGE_SRC: remote
+        with:
+          image-ref: ${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+
+      - name: Vulnerability scan linux/arm64 (fails on fixable HIGH / CRITICAL)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          TRIVY_PLATFORM: linux/arm64
+          TRIVY_IMAGE_SRC: remote
+        with:
+          image-ref: ${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+
+      # Only now do the public version tags appear: they point at the digest that was built, smoke-tested and scanned (both platform variants) above.
+      - name: Promote the scanned digest to the version tags
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          MAJOR="${VERSION%%.*}"
+          MINOR="${VERSION#*.}"; MINOR="${MINOR%%.*}"
+          TAGS=("$IMAGE:$VERSION")
+          if [ "$PRERELEASE" = "false" ]; then
+            TAGS+=("$IMAGE:$MAJOR.$MINOR" "$IMAGE:latest")
+            case "$TAG" in v0.*) ;; *) TAGS+=("$IMAGE:$MAJOR") ;; esac
+          fi
+          ARGS=()
+          for t in "${TAGS[@]}"; do ARGS+=(--tag "$t"); done
+          docker buildx imagetools create "${ARGS[@]}" "$IMAGE@$DIGEST"
+          for t in "${TAGS[@]}"; do
+            docker buildx imagetools inspect "$t" --format '{{ .Manifest.Digest }}' | grep -qx "$DIGEST"
+            echo "$t -> $DIGEST"
+          done
+
+  release:
+    name: GitHub release
+    needs: [verify, publish]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build the wheel from the hash-pinned build tools
+        run: |
+          set -euo pipefail
+          python -m venv "$RUNNER_TEMP/build"
+          "$RUNNER_TEMP/build/bin/pip" install --require-hashes --only-binary=:all: -r requirements/build.txt
+          "$RUNNER_TEMP/build/bin/pip" wheel --no-index --no-build-isolation --no-deps --wheel-dir dist .
+
+      - name: Collect the SPDX SBOMs of the image (one file per platform) and the checksums
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+          DIGEST: ${{ needs.publish.outputs.digest }}
+        run: |
+          set -euo pipefail
+          docker buildx imagetools inspect "$IMAGE@$DIGEST" --format '{{ json .SBOM }}' > "$RUNNER_TEMP/sbom.json"
+          for platform in linux/amd64 linux/arm64; do
+            jq -e --arg p "$platform" '.[$p].SPDX' "$RUNNER_TEMP/sbom.json" > "dist/davbridge-$VERSION-${platform//\//-}.spdx.json"
+          done
+          printf '%s\n' "$IMAGE@$DIGEST" > dist/IMAGE_DIGEST.txt
+          (cd dist && sha256sum -- *.whl *.spdx.json IMAGE_DIGEST.txt > SHA256SUMS)
+          cat dist/SHA256SUMS
+
+      - name: Extract release notes from CHANGELOG.md
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+          DIGEST: ${{ needs.publish.outputs.digest }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          {
+            echo
+            echo "## Container image"
+            echo
+            echo '```'
+            echo "docker pull $IMAGE:$VERSION"
+            echo "$IMAGE@$DIGEST"
+            echo '```'
+            echo
+            echo "Read [docs/privacy.md](https://github.com/chr0mcom/davbridge/blob/$TAG/docs/privacy.md) and [docs/limitations.md](https://github.com/chr0mcom/davbridge/blob/$TAG/docs/limitations.md) before deploying."
+          } >> notes.md
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          FLAGS=()
+          if [ "$PRERELEASE" = "true" ]; then FLAGS+=(--prerelease); else FLAGS+=(--latest); fi
+          gh release create "$TAG" dist/*.whl dist/*.spdx.json dist/SHA256SUMS dist/IMAGE_DIGEST.txt \
+            --verify-tag --title "DAVbridge $TAG" --notes-file notes.md "${FLAGS[@]}"

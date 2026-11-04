@@ -1,0 +1,38 @@
+# Gitleaks configuration for DAVbridge.
+#
+# - Extends the default rule set (generic API keys, private keys, cloud tokens, ...).
+# - Maintainers additionally run a private pre-push scan with deployment-specific terms;
+#   those terms are deliberately not published here.
+# - Allowlists only the synthetic strings of the offline test suite (below tests/) and one false positive (`sed -u` in tools/stream_probe.sh).
+#
+# Run locally:  gitleaks git --config .gitleaks.toml --redact --verbose .
+# CI:           .github/workflows/gitleaks.yml (full history, every push and pull request)
+
+title = "DAVbridge gitleaks configuration"
+
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Allowlists
+# ---------------------------------------------------------------------------
+
+# Synthetic credentials of the offline test suite. Convention: every fake secret in a test
+# starts with "not-a-secret" or "DAVBRIDGE-TEST-". The allowlist applies only below tests/
+# (AND condition).
+[[allowlists]]
+description = "Synthetic test credentials (tests/ only)"
+condition = "AND"
+paths = ['''^tests/''']
+regexes = ['''(?i)(not-a-secret|DAVBRIDGE-TEST-)[-_A-Za-z0-9]*''']
+targetRules = ["generic-api-key"]
+
+# `sed -u` (unbuffered output) in the curl pipeline of the streaming probe is not a curl `-u user:password` option.
+# The rule `curl-auth-user` matches it across the line continuation; allow exactly that line in exactly that file.
+[[allowlists]]
+description = "sed -u in tools/stream_probe.sh is not a curl credential"
+condition = "AND"
+paths = ['''(^|/)tools/stream_probe\.sh$''']
+regexTarget = "match"
+regexes = ['''\|\s*sed -u ''']
+targetRules = ["curl-auth-user"]

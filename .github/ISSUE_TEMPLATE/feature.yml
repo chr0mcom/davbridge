@@ -1,0 +1,62 @@
+name: Feature request
+description: Suggest an improvement or a new capability.
+title: "[Feature] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        DAVbridge is intentionally small: a calendar-only bridge with a limited EWS and EAS 14.1 facade in front
+        of a CalDAV server. Mail, contacts, tasks, invitations / attendees, attachments, writing recurring events,
+        OAuth / Modern Authentication and EAS 16.x are **out of scope** (see docs/limitations.md), but well-argued
+        proposals about the surrounding behavior are welcome.
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before you submit
+      options:
+        - label: I checked docs/limitations.md and the existing issues.
+          required: true
+        - label: I did not include secrets, real calendar data or captures of third-party services.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What are you trying to do, and what gets in the way?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - EWS / Outlook for Mac
+        - EAS / Outlook mobile
+        - CalDAV backend / other CalDAV servers
+        - Configuration / CLI
+        - Container / deployment
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: Would you like to implement it?
+      options:
+        - "Yes, I can open a pull request"
+        - "Maybe, with guidance"
+        - "No"
+    validations:
+      required: true

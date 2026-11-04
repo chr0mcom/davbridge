@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:cs="http://calendarserver.org/ns/" xmlns:oc="http://owncloud.org/ns">
+<d:response><d:href>/remote.php/dav/calendars/test-user/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+<d:response><d:href>/remote.php/dav/calendars/test-user/personal/</d:href><d:propstat><d:prop>
+<d:resourcetype><d:collection/><c:calendar/></d:resourcetype><d:displayname>Personal</d:displayname>
+<c:supported-calendar-component-set><c:comp name="VEVENT"/><c:comp name="VTODO"/></c:supported-calendar-component-set>
+<d:current-user-privilege-set><d:privilege><d:read/></d:privilege><d:privilege><d:write/></d:privilege><d:privilege><d:write-content/></d:privilege><d:privilege><d:bind/></d:privilege><d:privilege><d:unbind/></d:privilege></d:current-user-privilege-set><d:owner><d:href>/remote.php/dav/principals/users/test-user/</d:href></d:owner>
+</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+<d:response><d:href>/remote.php/dav/calendars/test-user/work/</d:href><d:propstat><d:prop>
+<d:resourcetype><d:collection/><c:calendar/></d:resourcetype><d:displayname>Work</d:displayname>
+<c:supported-calendar-component-set><c:comp name="VEVENT"/><c:comp name="VTODO"/></c:supported-calendar-component-set>
+<d:current-user-privilege-set><d:privilege><d:read/></d:privilege><d:privilege><d:write/></d:privilege><d:privilege><d:write-content/></d:privilege><d:privilege><d:bind/></d:privilege><d:privilege><d:unbind/></d:privilege></d:current-user-privilege-set><d:owner><d:href>/remote.php/dav/principals/users/test-user/</d:href></d:owner>
+</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+<d:response><d:href>/remote.php/dav/calendars/test-user/contact_birthdays/</d:href><d:propstat><d:prop>
+<d:resourcetype><d:collection/><c:calendar/></d:resourcetype><d:displayname>Contact birthdays</d:displayname>
+<c:supported-calendar-component-set><c:comp name="VEVENT"/><c:comp name="VTODO"/></c:supported-calendar-component-set>
+<d:current-user-privilege-set><d:privilege><d:read/></d:privilege></d:current-user-privilege-set><d:owner><d:href>/remote.php/dav/principals/users/test-user/</d:href></d:owner>
+</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+<d:response><d:href>/remote.php/dav/calendars/test-user/team_shared_by_bob/</d:href><d:propstat><d:prop>
+<d:resourcetype><d:collection/><c:calendar/></d:resourcetype><d:displayname>Team</d:displayname>
+<c:supported-calendar-component-set><c:comp name="VEVENT"/><c:comp name="VTODO"/></c:supported-calendar-component-set>
+<d:current-user-privilege-set><d:privilege><d:read/></d:privilege></d:current-user-privilege-set><d:owner><d:href>/remote.php/dav/principals/users/bob/</d:href></d:owner>
+</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+<d:response><d:href>/remote.php/dav/calendars/test-user/team-rw_shared_by_carol/</d:href><d:propstat><d:prop>
+<d:resourcetype><d:collection/><c:calendar/></d:resourcetype><d:displayname>Team writable</d:displayname>
+<c:supported-calendar-component-set><c:comp name="VEVENT"/><c:comp name="VTODO"/></c:supported-calendar-component-set>
+<d:current-user-privilege-set><d:privilege><d:read/></d:privilege><d:privilege><d:write/></d:privilege><d:privilege><d:write-content/></d:privilege><d:privilege><d:bind/></d:privilege><d:privilege><d:unbind/></d:privilege></d:current-user-privilege-set><d:owner><d:href>/remote.php/dav/principals/users/carol/</d:href></d:owner>
+</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+<d:response><d:href>/remote.php/dav/calendars/test-user/tasks-only/</d:href><d:propstat><d:prop>
+<d:resourcetype><d:collection/><c:calendar/></d:resourcetype><d:displayname>Tasks</d:displayname>
+<c:supported-calendar-component-set><c:comp name="VTODO"/></c:supported-calendar-component-set>
+<d:current-user-privilege-set><d:privilege><d:read/></d:privilege><d:privilege><d:write/></d:privilege><d:privilege><d:write-content/></d:privilege><d:privilege><d:bind/></d:privilege><d:privilege><d:unbind/></d:privilege></d:current-user-privilege-set><d:owner><d:href>/remote.php/dav/principals/users/test-user/</d:href></d:owner>
+</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+<d:response><d:href>/remote.php/dav/calendars/test-user/hidden/</d:href><d:propstat><d:prop>
+<d:resourcetype><d:collection/><c:calendar/></d:resourcetype><d:displayname>Hidden</d:displayname>
+<c:supported-calendar-component-set><c:comp name="VEVENT"/><c:comp name="VTODO"/></c:supported-calendar-component-set>
+<d:current-user-privilege-set></d:current-user-privilege-set><d:owner><d:href>/remote.php/dav/principals/users/test-user/</d:href></d:owner>
+</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+<d:response><d:href>/remote.php/dav/calendars/test-user/flagged/</d:href><d:propstat><d:prop>
+<d:resourcetype><d:collection/><c:calendar/></d:resourcetype><d:displayname>Flagged</d:displayname>
+<c:supported-calendar-component-set><c:comp name="VEVENT"/><c:comp name="VTODO"/></c:supported-calendar-component-set>
+<d:current-user-privilege-set><d:privilege><d:read/></d:privilege><d:privilege><d:write/></d:privilege><d:privilege><d:write-content/></d:privilege><d:privilege><d:bind/></d:privilege><d:privilege><d:unbind/></d:privilege></d:current-user-privilege-set><d:owner><d:href>/remote.php/dav/principals/users/test-user/</d:href></d:owner><oc:read-only>1</oc:read-only>
+</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+<d:response><d:href>/remote.php/dav/calendars/test-user/inbox/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/><c:schedule-inbox/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+<d:response><d:href>/remote.php/dav/calendars/test-user/trashbin/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+<d:response><d:href>/remote.php/dav/calendars/test-user/subscription/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/><cs:subscribed/></d:resourcetype><d:displayname>Subscription</d:displayname></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>
+</d:multistatus>

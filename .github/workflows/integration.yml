@@ -1,0 +1,202 @@
+name: Integration (Nextcloud)
+
+# Manual workflow: starts a throw-away Nextcloud container with a temporary SQLite database, creates ONLY synthetic
+# users and calendars, and then runs
+#   1. the tests marked `integration` (CRUD, ETag conflicts, sync tokens, calendar autodiscovery, permissions) and
+#   2. a real DAVbridge process (`davbridge check`, `davbridge serve`) driven by the independent EAS test client.
+# No production secrets, no external calendars, no network access to real accounts.
+# Real Outlook binaries are not tested here; tested client versions are a manual release matrix.
+on:
+  workflow_dispatch:
+    inputs:
+      nextcloud_image:
+        description: "Nextcloud image to test against (tag or digest)"
+        required: true
+        default: "nextcloud:34.0.5-apache@sha256:b2255a301d94e004f1af0370e5f1256ffb4ee156b231ac4e76aadd6c0e5b44a4"
+  # Weekly run against the pinned Nextcloud image below.
+  schedule:
+    - cron: "43 3 * * 3"
+
+permissions: {}
+
+env:
+  TZ: UTC
+  LANG: C.UTF-8
+
+jobs:
+  integration:
+    name: Nextcloud + DAVbridge
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            requirements/dev.txt
+            requirements/build.txt
+
+      - name: Install dependencies from the hash-pinned lock files and the project (editable, no build isolation)
+        run: |
+          pip install --require-hashes --only-binary=:all: -r requirements/dev.txt -r requirements/build.txt
+          pip install --no-index --no-build-isolation --no-deps -e .
+
+      - name: Start a temporary Nextcloud (SQLite)
+        env:
+          NEXTCLOUD_IMAGE: ${{ inputs.nextcloud_image || 'nextcloud:34.0.5-apache@sha256:b2255a301d94e004f1af0370e5f1256ffb4ee156b231ac4e76aadd6c0e5b44a4' }}
+        run: |
+          set -euo pipefail
+          # Random one-time admin password, masked in the log. Nothing here is a production secret.
+          ADMIN_PASS="$(openssl rand -hex 16)"
+          echo "::add-mask::$ADMIN_PASS"
+          docker run -d --name nc-it -p 127.0.0.1:8080:80 \
+            -e SQLITE_DATABASE=nextcloud \
+            -e NEXTCLOUD_ADMIN_USER=admin \
+            -e NEXTCLOUD_ADMIN_PASSWORD="$ADMIN_PASS" \
+            -e NEXTCLOUD_TRUSTED_DOMAINS="localhost 127.0.0.1" \
+            "$NEXTCLOUD_IMAGE"
+          for i in $(seq 1 120); do
+            if curl -sf http://127.0.0.1:8080/status.php | grep -q '"installed":true'; then break; fi
+            if [ "$i" = 120 ]; then docker logs nc-it | tail -50; exit 1; fi
+            sleep 3
+          done
+          curl -s http://127.0.0.1:8080/status.php; echo
+
+      - name: Create synthetic users, calendars and a read-only share
+        run: |
+          set -euo pipefail
+          ALICE_PASS="$(openssl rand -hex 16)"
+          BOB_PASS="$(openssl rand -hex 16)"
+          echo "::add-mask::$ALICE_PASS"
+          echo "::add-mask::$BOB_PASS"
+          occ() { docker exec --user www-data -e OC_PASS nc-it php occ "$@"; }
+          # The throw-away instance has no two-factor authentication, so account passwords work for CalDAV; the brute-force
+          # throttle would only slow down the wrong-password tests (all requests arrive from the Docker gateway address).
+          occ config:system:set auth.bruteforce.protection.enabled --value=false --type=boolean
+          OC_PASS="$ALICE_PASS" occ user:add --password-from-env --display-name "Alice Example" alice
+          OC_PASS="$BOB_PASS" occ user:add --password-from-env --display-name "Bob Example" bob
+          occ dav:create-calendar alice test-calendar
+          occ dav:create-calendar bob team
+          # Bob shares his calendar with Alice, read-only (no <o:read-write/> element): Alice sees `team_shared_by_bob`.
+          curl -sf -u "bob:$BOB_PASS" -X POST -H "Content-Type: application/xml; charset=utf-8" \
+            --data '<?xml version="1.0" encoding="utf-8"?><o:share xmlns:d="DAV:" xmlns:o="http://owncloud.org/ns"><o:set><d:href>principal:principals/users/alice</d:href></o:set></o:share>' \
+            http://127.0.0.1:8080/remote.php/dav/calendars/bob/team
+          for i in $(seq 1 20); do
+            if curl -s -u "alice:$ALICE_PASS" -X PROPFIND -H "Depth: 1" http://127.0.0.1:8080/remote.php/dav/calendars/alice/ | grep -q "team_shared_by_bob"; then break; fi
+            if [ "$i" = 20 ]; then echo "::error::the shared calendar did not appear for alice"; exit 1; fi
+            sleep 2
+          done
+          {
+            echo "DAVBRIDGE_IT_CALDAV_URL=http://127.0.0.1:8080/remote.php/dav"
+            echo "DAVBRIDGE_IT_USER=alice"
+            echo "DAVBRIDGE_IT_PASSWORD=$ALICE_PASS"
+            echo "DAVBRIDGE_IT_CALENDAR=test-calendar"
+            echo "DAVBRIDGE_IT_READ_ONLY_CALENDAR=team_shared_by_bob"
+            # Plain HTTP is only accepted with this explicit development switch (config.ALLOW_INSECURE_HTTP_VAR).
+            echo "DAVBRIDGE_ALLOW_INSECURE_HTTP=true"
+          } >> "$GITHUB_ENV"
+
+      - name: Integration tests against the real CalDAV server
+        run: pytest -m integration -v
+
+      - name: Configure DAVbridge for the throw-away Nextcloud
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/davbridge/state"
+          chmod 700 "$RUNNER_TEMP/davbridge/state"
+          cat > "$RUNNER_TEMP/davbridge/davbridge.toml" <<'TOML'
+          config_version = 1
+
+          [server]
+          public_url = "http://127.0.0.1:8000"
+          listen = "127.0.0.1:8000"
+
+          [caldav]
+          base_url = "http://127.0.0.1:8080/remote.php/dav"
+
+          [auth]
+          mode = "allowlist"
+          allowed_users = ["alice"]
+
+          [protocols.ews]
+          enabled = true
+
+          [protocols.eas]
+          enabled = true
+          acknowledge_mobile_cloud_processing = true
+
+          [[users]]
+          username = "alice"
+          address = "alice@dav.example.com"
+          display_name = "Alice Example"
+          eas_enabled = true
+          calendar_mode = "explicit"
+
+            [[users.calendars]]
+            path = "test-calendar"
+            id = "test-calendar"
+            display_name = "Test Calendar"
+            default = true
+            write = "caldav"
+            owner = "alice"
+
+            [[users.calendars]]
+            path = "team_shared_by_bob"
+            id = "read-only-calendar"
+            display_name = "Read-Only Calendar"
+            write = "caldav"
+            owner = "bob"
+          TOML
+          {
+            echo "DAVBRIDGE_CONFIG=$RUNNER_TEMP/davbridge/davbridge.toml"
+            echo "DAVBRIDGE_STATE_DIR=$RUNNER_TEMP/davbridge/state"
+          } >> "$GITHUB_ENV"
+
+      - name: davbridge init, check and migrate --check
+        run: |
+          set -euo pipefail
+          davbridge init
+          davbridge migrate --check
+          # Exit 1 (warning) is expected: plain HTTP is a development setting. Exit 2 would be an error.
+          printf '%s\n' "$DAVBRIDGE_IT_PASSWORD" | davbridge check --user alice --password-stdin || [ $? -eq 1 ]
+
+      - name: Start DAVbridge and run the EAS test client
+        run: |
+          set -euo pipefail
+          davbridge serve > "$RUNNER_TEMP/davbridge/server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/davbridge/server.pid"
+          for i in $(seq 1 30); do
+            if davbridge healthcheck; then break; fi
+            if [ "$i" = 30 ]; then cat "$RUNNER_TEMP/davbridge/server.log"; exit 1; fi
+            sleep 1
+          done
+          printf '%s\n' "$DAVBRIDGE_IT_PASSWORD" | python tools/eas_test_client.py all --fast --quiet \
+            --url http://127.0.0.1:8000 --user alice --password-stdin \
+            --state "$RUNNER_TEMP/davbridge/eas-state.json"
+          printf '%s\n' "$DAVBRIDGE_IT_PASSWORD" | python tools/eas_test_client.py cleanup --quiet \
+            --url http://127.0.0.1:8000 --user alice --password-stdin \
+            --state "$RUNNER_TEMP/davbridge/eas-state.json"
+
+      - name: Stop DAVbridge (SIGTERM must end it cleanly)
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/davbridge/server.pid" ]; then
+            kill -TERM "$(cat "$RUNNER_TEMP/davbridge/server.pid")" 2>/dev/null || true
+            sleep 3
+          fi
+          tail -20 "$RUNNER_TEMP/davbridge/server.log" 2>/dev/null || true
+
+      - name: Nextcloud logs on failure
+        if: failure()
+        run: docker logs nc-it 2>&1 | tail -100 || true
+
+      - name: Remove the container
+        if: always()
+        run: docker rm -f -v nc-it || true

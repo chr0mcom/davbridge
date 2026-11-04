@@ -1,0 +1,52 @@
+# Keep the build context small and free of anything that must never end up in an image layer.
+# The Docker build needs: src/, data/, pyproject.toml, requirements/runtime.txt, requirements/build.txt, README.md, LICENSE,
+# NOTICE, THIRD_PARTY_NOTICES.md and the Dockerfile.
+
+# Version control and automation
+.git
+.gitignore
+.gitattributes
+.github
+.gitleaks.toml
+.dockerignore
+
+# Not needed at runtime
+docs
+examples
+config
+tests
+tools
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SECURITY.md
+CHANGELOG.md
+
+# Python and tooling caches, local environments, build output
+__pycache__
+*.py[cod]
+.venv
+venv
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+coverage.xml
+htmlcov
+dist
+build
+*.egg-info
+
+# Secrets, local state and logs - never copy these into an image
+.env
+.env.*
+secrets
+state
+logs
+*.key
+*.pem
+*.pass
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+davbridge.toml
+docker-compose*.yml

@@ -1,0 +1,38 @@
+# Runtime and local state
+secrets/
+state/
+logs/
+davbridge.toml
+hmac.key
+hmac.key.*
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+build/
+dist/
+wheels/
+
+# Test, coverage and lint caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Editors, operating systems and local tooling
+.idea/
+.vscode/
+*.swp
+.DS_Store
