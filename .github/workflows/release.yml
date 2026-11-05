@@ -164,22 +164,27 @@ jobs:
           REVISION: ${{ github.sha }}
         run: |
           set -euo pipefail
+          docker buildx imagetools inspect "$IMAGE@$DIGEST" | grep -E 'linux/(amd64|arm64)'
+          # Run each platform by its own manifest digest: pulling the same index digest for a second
+          # platform fails on the runner's image store ("cannot overwrite digest").
+          MANIFEST=$(docker buildx imagetools inspect "$IMAGE@$DIGEST" --format '{{ json .Manifest }}')
           for platform in linux/amd64 linux/arm64; do
             echo "== $platform"
+            CHILD=$(jq -r --arg arch "${platform#linux/}" '.manifests[] | select(.platform.os == "linux" and .platform.architecture == $arch) | .digest' <<< "$MANIFEST")
+            [[ "$CHILD" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::No $platform manifest in $DIGEST"; exit 1; }
+            REF="$IMAGE@$CHILD"
             docker run --rm --platform "$platform" --read-only --user 65532:65532 --cap-drop ALL \
-              --tmpfs /tmp:size=32m,mode=1777 "$IMAGE@$DIGEST" davbridge version
+              --tmpfs /tmp:size=32m,mode=1777 "$REF" davbridge version
             docker run --rm --platform "$platform" --read-only --user 65532:65532 --cap-drop ALL \
-              --tmpfs /tmp:size=32m,mode=1777 "$IMAGE@$DIGEST" python -c "import davbridge.main, lxml.etree, icalendar; print('imports ok')"
+              --tmpfs /tmp:size=32m,mode=1777 "$REF" python -c "import davbridge.main, lxml.etree, icalendar; print('imports ok')"
+            docker image inspect "$REF" --format '{{ index .Config.Labels "org.opencontainers.image.source" }} {{ index .Config.Labels "org.opencontainers.image.licenses" }}'
+            # The version label must be the release version, not the staging tag (the metadata labels override the Dockerfile's).
+            LABEL_VERSION=$(docker image inspect "$REF" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')
+            [ "$LABEL_VERSION" = "$VERSION" ] || { echo "::error::Image label version is '$LABEL_VERSION', expected '$VERSION'"; exit 1; }
+            LABEL_REVISION=$(docker image inspect "$REF" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
+            [ "$LABEL_REVISION" = "$REVISION" ] || { echo "::error::Image label revision is '$LABEL_REVISION', expected '$REVISION'"; exit 1; }
+            docker image inspect "$REF" --format '{{ .Config.User }}' | grep -qx '65532:65532'
           done
-          docker buildx imagetools inspect "$IMAGE@$DIGEST" | grep -E 'linux/(amd64|arm64)'
-          docker pull "$IMAGE@$DIGEST" >/dev/null
-          docker image inspect "$IMAGE@$DIGEST" --format '{{ index .Config.Labels "org.opencontainers.image.source" }} {{ index .Config.Labels "org.opencontainers.image.licenses" }}'
-          # The version label must be the release version, not the staging tag (the metadata labels override the Dockerfile's).
-          LABEL_VERSION=$(docker image inspect "$IMAGE@$DIGEST" --format '{{ index .Config.Labels "org.opencontainers.image.version" }}')
-          [ "$LABEL_VERSION" = "$VERSION" ] || { echo "::error::Image label version is '$LABEL_VERSION', expected '$VERSION'"; exit 1; }
-          LABEL_REVISION=$(docker image inspect "$IMAGE@$DIGEST" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')
-          [ "$LABEL_REVISION" = "$REVISION" ] || { echo "::error::Image label revision is '$LABEL_REVISION', expected '$REVISION'"; exit 1; }
-          docker image inspect "$IMAGE@$DIGEST" --format '{{ .Config.User }}' | grep -qx '65532:65532'
 
       # A newly created GHCR package is private until you make it public once in the package
       # settings (Package settings -> Change visibility). Trivy authenticates with the job token.
