@@ -1193,7 +1193,9 @@ def t5_settings(g: Device, l: Run, args) -> None:
     sd = search(path(r, "Settings:UserInformation"), "Settings:SendDisabled")
     l.check("UserInformation: Accounts/Account/SendDisabled = 1", bool(sd) and sd[0].text == "1", f"SendDisabled {sd[0].text if sd else '-'}")
     a = g.eas("Settings", K("Settings:Settings", K("Settings:Oof", K("Settings:Set", K("Settings:OofState", text="0")))))
-    l.check("Set Oof is rejected (overall status 7)", a.status == 200 and p_status(a, "Settings:Status") == 7, f"HTTP {a.status}, Status {txt(a.root, 'Settings:Status')}")
+    l.check("Set Oof to off is accepted without effect (overall status 1)", a.status == 200 and p_status(a, "Settings:Status") == 1, f"HTTP {a.status}, Status {txt(a.root, 'Settings:Status')}")
+    a = g.eas("Settings", K("Settings:Settings", K("Settings:Oof", K("Settings:Set", K("Settings:OofState", text="1")))))
+    l.check("Set Oof to on is rejected (overall status 7)", a.status == 200 and p_status(a, "Settings:Status") == 7, f"HTTP {a.status}, Status {txt(a.root, 'Settings:Status')}")
 
 
 def all_folder(g: Device) -> list[dict]:
@@ -2061,7 +2063,7 @@ def parser() -> argparse.ArgumentParser:
     new("autodiscover", "T2: autodiscover.json (ActiveSync/AutodiscoverV1/unknown/foreign domain) and POX mobilesync anonymous/authenticated")
     new("provision", "T3: Provision phase 1/2 and commands without Provision")
     new("foldersync", "T4: FolderSync 0, repetition, unchanged hierarchy, invalid key (9)")
-    new("settings", "T5: Settings (Oof, DeviceInformation, UserInformation); Set Oof -> 7")
+    new("settings", "T5: Settings (Oof, DeviceInformation, UserInformation); Set Oof off -> 1, on -> 7")
     new("sync-null", "T6: Sync 0 for all folders")
     s = new("sync-full", "T7: Sync 0, then paging with --window until MoreAvailable is gone; counts items, series, Sensitivity=2")
     s.add_argument("--window", type=int, default=3, help="WindowSize (Standard 3)")

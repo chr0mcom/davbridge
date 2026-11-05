@@ -9,6 +9,20 @@ patch releases do not change documented configuration or protocol behavior.
 
 ## [Unreleased]
 
+### Fixed
+
+- `tools/eas_test_client.py` scenario T5 expected `Settings` / `Set Oof` with `OofState` 0 to be rejected, although the documented behavior is
+  "off is accepted without effect, on is rejected (status 7)". The scenario now checks both.
+
+### Documentation
+
+- README: new section "Before you try it" (use a separate test calendar and a backup, main limitations, Android untested, request for feedback);
+  the Quickstart now checks for the external Docker network `proxy` before the first Compose command.
+- README and client guides: "free/busy" now says what is meant (the busy status of a single event); free/busy lookups and the scheduling
+  assistant remain unsupported.
+- Revoking an app password: the mobile guide now states the same upper bound as the privacy guide (`auth.positive_cache_seconds`).
+- Limitations: note that DAVbridge is not a Nextcloud app and that App Store license rules would have to be clarified first.
+
 ## [0.1.0] - 2026-11-05
 
 First public release (alpha). DAVbridge is extracted from a single-operator deployment and

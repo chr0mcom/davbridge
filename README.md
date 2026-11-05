@@ -48,7 +48,7 @@ behaves like a normal CalDAV client of the signed-in user. The CalDAV server sta
 
 ## Features
 
-- Outlook for Mac over **EWS**: view, create, edit and delete single events; reminders, categories, all-day, free/busy, private flag.
+- Outlook for Mac over **EWS**: view, create, edit and delete single events; reminders, categories, all-day, the busy status of the single event (free/tentative/busy/out of office), private flag. Querying other people's availability (free/busy lookups, scheduling assistant) is **not** supported.
 - Outlook for iOS/Android over **Exchange ActiveSync 14.1** (disabled by default, double opt-in): the same for single events; recurring events read-only where exactly mappable.
 - Autodiscover (POX and JSON v2) for easy account setup.
 - Conditional writes (ETags), lossless patching of existing events (unknown properties, extra alarms and time zones survive), CalDAV wins on conflicts.
@@ -96,11 +96,33 @@ The short version (the complete, honest list is in [docs/limitations.md](docs/li
 > Mobile support is **off by default**. It starts only if the operator sets `protocols.eas.enabled`, `acknowledge_mobile_cloud_processing`
 > **and** `eas_enabled` for the user. Read [docs/privacy.md](docs/privacy.md) first. Outlook for Mac does not involve a Microsoft cloud service in this path.
 
+## Before you try it
+
+This is an **alpha** from a single-operator deployment. Please test it with a **separate test calendar** (and a test user or a dedicated app
+password) and keep a **backup** of any calendar you connect. Do not point it at your only productive calendar yet.
+
+- Recurring events are **not shown at all** in Outlook for Mac. Creating recurring events, attachments or invitations in Outlook can end in a
+  **silent divergence**: Outlook keeps something locally that does not exist like that on the server. Do not create them.
+- Outlook for Mac does not reliably pick up server-side changes by itself; use *Synchronize* or restart Outlook.
+- Outlook for Android is **not tested**; Outlook for iOS and Mac were tested manually.
+- The delete brake delays repeated mass deletions from mobile clients and may execute rejected deletions later ([docs/limitations.md](docs/limitations.md)).
+- Feedback from other setups is very welcome: open an issue with your versions and what you tested ([CONTRIBUTING.md](CONTRIBUTING.md)).
+
 ## Quickstart (about 15 minutes)
 
 Prerequisites: a Linux host with Docker and Compose; a DNS name (here `dav.example.com`) with a **publicly trusted TLS certificate** on a
 reverse proxy; a CalDAV server reachable from the container (here Nextcloud at `cloud.example.com`); a CalDAV **app password** for your user
 (required when 2FA is on). Details: [docs/installation.md](docs/installation.md).
+
+The example Compose file attaches the container to an **existing external Docker network named `proxy`** (the network your reverse proxy is on),
+and `docker compose run` fails with "network proxy declared as external, but could not be found" if it does not exist. Check first:
+
+```bash
+docker network ls --filter name=^proxy$ --format '{{.Name}}'   # prints "proxy" if it exists
+docker network create proxy                                    # only if you have no proxy network yet
+```
+
+If your reverse proxy already uses another network, keep that one and change `networks.proxy.name` in `docker-compose.yml` after step 1.
 
 ```bash
 # 1. Get the example files

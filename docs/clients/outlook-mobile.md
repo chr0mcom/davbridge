@@ -59,7 +59,7 @@ If setup loops or fails, see [troubleshooting.md](../troubleshooting.md#outlook-
 ## What to expect
 
 - **Calendar:** your events appear. Create, edit and delete **single** events: subject, location, time, all-day, notes,
-  free/busy, reminder, categories, sensitivity.
+  busy status (free/tentative/busy/out of office), reminder, categories, sensitivity.
 - **Mail, Contacts, Files:** empty. The inbox view (including Focused) stays empty and sending mail is rejected - this is
   normal; DAVbridge is calendar-only. Do not use this account for mail.
 - **Recurring events:** shown if they map exactly to EAS 14.1, but **read-only**. Series that cannot be mapped exactly are
@@ -73,6 +73,6 @@ If setup loops or fails, see [troubleshooting.md](../troubleshooting.md#outlook-
 ## Remove the account
 
 1. Remove the account in the app.
-2. Revoke the app password on the CalDAV server (stops all access immediately).
+2. Revoke the app password on the CalDAV server. Access stops at the latest after `auth.positive_cache_seconds` (default 300 s; see [privacy.md](../privacy.md#revocation-and-removal)); restart DAVbridge to end it at once.
 3. Ask the operator to run `davbridge reset devices --user alice` to drop the device record.
 4. If you want the copy at Microsoft removed, use Microsoft's account and privacy tools; DAVbridge cannot do it.

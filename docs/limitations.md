@@ -87,3 +87,6 @@ functional and consistency limit without marketing shortcuts. If something is no
 - The project makes **no statement about patents** and does not claim patent clearance ([NOTICE](../NOTICE)). The MIT license
   grants no rights in Microsoft patents or trademarks. Operators are responsible for their own licensing, patent,
   trademark, privacy, security and backup assessment, including the terms of the Outlook clients they use.
+- DAVbridge is a standalone service, not a Nextcloud app; it is not submitted to the Nextcloud App Store. The MIT license was chosen for the
+  repository; if a Nextcloud-side packaging is ever planned, the App Store's license rules (AGPL-3.0-or-later or a compatible license) must be
+  clarified with Nextcloud first.

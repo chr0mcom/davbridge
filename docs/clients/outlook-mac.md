@@ -46,7 +46,7 @@ If setup fails, see [troubleshooting.md](../troubleshooting.md) (wrong password 
 ## What works
 
 - Viewing single (non-recurring) events from the configured calendars.
-- Creating, editing and deleting single events: subject, location, start/end, all-day, notes (body), free/busy status,
+- Creating, editing and deleting single events: subject, location, start/end, all-day, notes (body), busy status of the event,
   reminder, categories, private flag. Changes made in Outlook arrive in the CalDAV server immediately.
 - Read-only calendars (`write = "never"` or no write privilege on the server) can be viewed but not changed.
 
