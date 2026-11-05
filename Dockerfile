@@ -11,7 +11,7 @@
 #
 # Both stages use the same multi-architecture manifest list of python:3.12-slim-trixie, pinned by digest (a test keeps the two
 # lines identical). Dependabot proposes updates to both.
-FROM python:3.12-slim-trixie@sha256:aa943ce411423c7582288f18707ff66eddcbaeb510502d747a72aeb34f30d159 AS builder
+FROM python:3.15-slim-trixie@sha256:8c13a3f37a6a5b71498228e902c4b9f51c1f7900d49fabf71f9a650c6120e0d0 AS builder
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_CACHE_DIR=1 PYTHONDONTWRITEBYTECODE=1
 WORKDIR /build
 # Two environments: /opt/venv (runtime, copied to the final image, without pip) and /opt/buildenv (build tools, discarded with this stage).
@@ -27,7 +27,7 @@ RUN /opt/buildenv/bin/pip wheel --no-index --no-build-isolation --no-deps --whee
     && /opt/buildenv/bin/pip --python /opt/venv/bin/python install --no-index --no-deps --no-compile /wheels/*.whl
 
 
-FROM python:3.12-slim-trixie@sha256:aa943ce411423c7582288f18707ff66eddcbaeb510502d747a72aeb34f30d159 AS runtime
+FROM python:3.15-slim-trixie@sha256:8c13a3f37a6a5b71498228e902c4b9f51c1f7900d49fabf71f9a650c6120e0d0 AS runtime
 ARG VERSION=0.1.0
 ARG REVISION=unknown
 ARG BUILD_DATE=unknown
