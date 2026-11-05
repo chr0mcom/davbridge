@@ -15,6 +15,10 @@ updates:
     labels: ["dependencies", "python"]
     commit-message:
       prefix: "deps"
+    ignore:
+      # icalendar 7 reads an unreadable RRULE differently (series would become single appointments); needs a code change first.
+      - dependency-name: "icalendar"
+        update-types: ["version-update:semver-major"]
     groups:
       python-patch:
         update-types: ["patch"]
