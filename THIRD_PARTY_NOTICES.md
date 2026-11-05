@@ -79,7 +79,7 @@ These packages are installed into the container image from `requirements/runtime
 | Package | License (SPDX) | Project |
 |---|---|---|
 | fastapi * | MIT | <https://github.com/fastapi/fastapi> |
-| starlette | BSD-3-Clause | <https://github.com/encode/starlette> |
+| starlette * | BSD-3-Clause | <https://github.com/encode/starlette> |
 | uvicorn * | BSD-3-Clause | <https://github.com/encode/uvicorn> |
 | httpx * | BSD-3-Clause | <https://github.com/encode/httpx> |
 | httpcore | BSD-3-Clause | <https://github.com/encode/httpcore> |
@@ -95,6 +95,8 @@ These packages are installed into the container image from `requirements/runtime
 | pydantic | MIT | <https://github.com/pydantic/pydantic> |
 | pydantic-core | MIT | <https://github.com/pydantic/pydantic> |
 | annotated-types | MIT | <https://github.com/annotated-types/annotated-types> |
+| annotated-doc | MIT | <https://github.com/fastapi/annotated-doc> |
+| opentelemetry-api | Apache-2.0 | <https://github.com/open-telemetry/opentelemetry-python> (API only, no SDK or exporter is installed; nothing is sent) |
 | typing-extensions | PSF-2.0 | <https://github.com/python/typing_extensions> |
 | typing-inspection | MIT | <https://github.com/pydantic/typing-inspection> |
 

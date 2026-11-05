@@ -67,6 +67,8 @@ compatible; only the configuration can be converted (`davbridge config migrate`)
 - Calendar paths with an encoded `/`, `\` or `.` (for example `%2F`) are rejected in the configuration, in migrated files and during discovery.
 - `server.trusted_proxies` rejects `/0` networks.
 - Large CalDAV answers (above 256 KiB) are parsed in a worker thread so that they cannot stall the single event loop.
+- Runtime dependencies are locked at versions without known fixable HIGH or CRITICAL vulnerabilities at release time:
+  lxml 6.1 (CVE-2026-41066), Starlette 1.10 (CVE-2025-62727, CVE-2026-48818, CVE-2026-54283), FastAPI 0.162.
 
 ### Notes for operators
 
