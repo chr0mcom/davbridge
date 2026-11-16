@@ -32,6 +32,10 @@ updates:
     labels: ["dependencies", "docker"]
     commit-message:
       prefix: "deps(docker)"
+    ignore:
+      # The base image follows the tested Python line (3.12); a new minor version is a deliberate decision with its own test run.
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

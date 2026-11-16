@@ -9,6 +9,11 @@ patch releases do not change documented configuration or protocol behavior.
 
 ## [Unreleased]
 
+### Changed
+
+- Dependency updates: uvicorn 0.54 (the bound is now `<0.55`; the full EAS scenarios including long Pings pass against it), FastAPI 0.162.7,
+  ruff 0.17.5 in the development lock; `docker/login-action` 4.8.0 in the release workflow.
+
 ### Fixed
 
 - `tools/eas_test_client.py` scenario T5 expected `Settings` / `Set Oof` with `OofState` 0 to be rejected, although the documented behavior is
