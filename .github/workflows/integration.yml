@@ -131,6 +131,8 @@ jobs:
           [protocols.eas]
           enabled = true
           acknowledge_mobile_cloud_processing = true
+          # The EAS test client creates and deletes about a dozen test events within minutes; the default delete brake (5 per hour) would reject the later ones.
+          delete_brake_minimum = 100
 
           [[users]]
           username = "alice"

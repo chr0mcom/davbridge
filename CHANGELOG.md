@@ -9,6 +9,10 @@ patch releases do not change documented configuration or protocol behavior.
 
 ## [Unreleased]
 
+### Fixed
+
+- The weekly integration workflow failed in the EAS scenario cleanup because the default delete brake (5 per hour) rejected the later test deletions; the throw-away instance now sets `delete_brake_minimum = 100`.
+
 ### Changed
 
 - Dependency updates: uvicorn 0.54 (the bound is now `<0.55`; the full EAS scenarios including long Pings pass against it), FastAPI 0.162.7,

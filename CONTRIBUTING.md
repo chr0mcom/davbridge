@@ -122,6 +122,7 @@ standard input (`--password-stdin`), never from arguments or the environment. Us
   Scenario options: `wake` and `restart` take `--trigger COMMAND` (a second actor, for example a command that creates an event within seconds; `restart` also `--delay SECONDS`);
   `ping` and `wake` take `--heartbeat SECONDS`; `load` takes `--window N`, `--max-duration SECONDS`, `--expect-series N`, `--expect-private N`, `--expect-count N` and
   `--rss-measure --container NAME --rss-limit MB` (reads `docker stats`); `concurrent` takes `--window N` and `--repeats N`.
+  The scenario `all` deletes about a dozen test events within minutes: raise `protocols.eas.delete_brake_minimum` on the test instance (for example to 100), otherwise the delete brake (default 5 per hour and user) rejects the later deletions and the cleanup reports "left".
   Example: `printf '%s' "$PW" | python tools/eas_test_client.py all --fast --url https://dav.example.com --user test-user --password-stdin`.
 - `tools/stream_probe.sh` - shows the arrival time of EWS streaming chunks through a reverse proxy (`--url`, `--user`, `--password-stdin`, `--http1.1|--http2`, `--minutes N`).
 - `tools/dev_calendar.py` - creates, changes, deletes and lists `DAVBRIDGE-TEST` events of an explicitly named configured test user (`--config`, `--user`, `--password-stdin`).
